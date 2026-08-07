@@ -3,4 +3,5 @@
 
 # Permitir solo el dash standalone
 !Dash_CSC.html
+!index.html
 !.gitignore
