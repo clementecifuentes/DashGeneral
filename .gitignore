@@ -1,0 +1,6 @@
+# Ignorar todo por defecto
+*
+
+# Permitir solo el dash standalone
+!Dash_CSC.html
+!.gitignore
