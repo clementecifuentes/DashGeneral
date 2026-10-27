@@ -451,22 +451,34 @@ def leer_precision_ag() -> dict:
         return {}
 
     result = {}
+    # data_refreshed usa re.DOTALL porque la fecha aparece en la línea siguiente al label
     patterns = {
         "highly_engaged_orgs": r"Highly Engaged Orgs\s+([\d,\.]+)",
         "digitally_engaged_orgs": r"Digitally Engaged Orgs\s+([\d,\.]+)",
         "opportunity_ha": r"Opportunity\s+([\d\.]+)\s+100%",
         "engaged_ha_r12": r"Current Engaged (?:Hectares|Acre) \(R12\)\s+([\d,\.]+)",
-        "highly_engaged_ha_5step": r"Highly Engaged Hectares \(5 Step\)\s+([\d,\.]+)",
         "connected_machines": r"Connected Ag Machines\s+([\d,\.]+)",
-        "data_refreshed": r"Data Refreshed as of:\s+(\d+/\d+/\d+)",
+        "data_refreshed": r"Data Refreshed as of:.*?(\d+/\d+/\d+)",
     }
 
     text = ""
     with pdfplumber.open(path) as pdf:
+        page0 = pdf.pages[0]
         for page in pdf.pages[:2]:
             t = page.extract_text()
             if t:
                 text += t + "\n"
+
+        # highly_engaged_ha_5step: el texto principal está garbled por superposición
+        # de capas de texto en el PDF; se extrae con bounding box de la columna "5 Step"
+        try:
+            crop5 = page0.crop((330, 255, 395, 365))
+            t5 = crop5.extract_text() or ""
+            m5 = re.search(r"5 Steps\s+([\d.]+)K", t5)
+            if m5:
+                result["highly_engaged_ha_5step"] = round(float(m5.group(1)) * 1000, 0)
+        except Exception:
+            pass
 
     def parse_es_num(s: str):
         """Convierte número en formato español (1.234,56 o 1.234) a float."""
@@ -486,7 +498,7 @@ def leer_precision_ag() -> dict:
             return s
 
     for key, pat in patterns.items():
-        m = re.search(pat, text)
+        m = re.search(pat, text, re.DOTALL)
         if m:
             result[key] = parse_es_num(m.group(1))
 
